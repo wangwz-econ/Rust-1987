@@ -1,3 +1,12 @@
+%% Step 1.1: Estimate Transition Probabilities
+
+[p0_g1to3, p1_g1to3, p2_g1to3] = fun_transition_prob(state_1, state_2, state_3);
+[p0_g4, p1_g4, p2_g4] = fun_transition_prob(state_4);
+[p0_g1to4, p1_g1to4, p2_g1to4] = fun_transition_prob(state_1, state_2, state_3, state_4);
+
+
+
+
 %% Estimate by minimizing the negative log-likelihood
 
 startval = [10, 3.6];

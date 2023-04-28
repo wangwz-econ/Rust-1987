@@ -5,10 +5,10 @@ clear all
 % Input data and reshape the column vector to a matrix
 % See Part 4 in file https://editorialexpress.com/jrust/nfxp.pdf for data
 % description and details
-[group_1] = fun_data_input("g870.asc", 36, 15);
-[group_2] = fun_data_input("rt50.asc", 60, 4);
-[group_3] = fun_data_input("t8h203.asc", 81, 48);
-[group_4] = fun_data_input("a530875.asc", 128, 37);
+[group_1] = fun_data_input("..\data\g870.asc", 36, 15);
+[group_2] = fun_data_input("..\data\rt50.asc", 60, 4);
+[group_3] = fun_data_input("..\data\t8h203.asc", 81, 48);
+[group_4] = fun_data_input("..\data\a530875.asc", 128, 37);
 % [group_5] = fun_data_input("a530874.asc", 137, 12);
 % [group_6] = fun_data_input("a452374.asc", 137, 10);
 % [group_7] = fun_data_input("a530872.asc", 137, 18);
@@ -32,17 +32,6 @@ data_4 = fun_data_reshape(choice_4, state_4);
 data_1to3 = [data_1; data_2; data_3];
 data_1to4 = [data_1to3; data_4];
 
-%% Estimate Transition Probabilities
-
-[p0_g1to3, p1_g1to3, p2_g1to3] = fun_transition_prob(data_1to3);
-[p0_g4, p1_g4, p2_g4] = fun_transition_prob(data_4);
-[p0_g1to4, p1_g1to4, p2_g1to4] = fun_transition_prob(data_1to4);
-
-
-%% Keep Only Necessary Variables
-
-clearvars -except data_1to3 data_1to4 data_4 p0_g1to3 p1_g1to3 p2_g1to3 ...
-    p0_g4 p1_g4 p2_g4 p0_g1to4 p1_g1to4 p2_g1to4
 
 
 

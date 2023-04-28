@@ -1,3 +1,46 @@
+%% Test for transition probabilities calculation
+data = data_4;
+state_data  = data(:, 1);
+choice_data = data(:, 2);
+
+Nobs = size(data, 1);
+
+state_data_lead = NaN(Nobs, 1);
+state_data_lead(1:(Nobs-1)) = state_data(2:Nobs);
+
+delta_state = state_data_lead - state_data;
+delta_state(delta_state>2) = 2;
+delta_state(delta_state<0) = NaN;
+
+% bad transition probabilities calculation!
+function [p_0, p_1, p_2] = fun_transition_prob(data)
+
+state_data  = data(:, 1);
+choice_data = data(:, 2);
+
+Nobs = size(data, 1);
+
+state_data_lead = NaN(Nobs, 1);
+state_data_lead(1:(Nobs-1)) = state_data(2:Nobs);
+
+delta_state = state_data_lead - state_data;
+delta_state(delta_state>2) = 2;
+delta_state(delta_state<0) = NaN;
+
+% delta_state(choice_data ~= 0) = NaN;
+
+N = size(data, 1) - sum( isnan(delta_state), 'all');
+n_0 = sum(delta_state==0, 'all');
+n_1 = sum(delta_state==1, 'all');
+n_2 = sum(delta_state==2, 'all');
+
+p_0 = n_0 / N;
+p_1 = n_1 / N;
+p_2 = n_2 / N;
+
+
+end
+%%
 beta = 0.9999;
 pars = [10.03904057, 2.61808055];
 rc    = pars(1);
