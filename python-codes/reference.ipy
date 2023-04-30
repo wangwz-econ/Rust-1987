@@ -1,0 +1,138 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Apr 29 22:52:24 2023
+
+@author: Wang
+"""
+
+#%%
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize, fixed_point
+from numba import njit, float64, float32, int64, prange
+from numba.experimental import jitclass
+
+b1_raw = pd.read_csv("../data/g870.asc", header=None)
+b1_raw = pd.DataFrame(np.array(b1_raw).reshape((36, 15), order="F"))
+
+b2_raw = pd.read_csv('../data/rt50.asc', header=None)
+b2_raw = pd.DataFrame(np.array(b2_raw).reshape((60, 4), order="F"))
+
+b3_raw = pd.read_csv('../data/t8h203.asc', header=None)
+b3_raw = pd.DataFrame(np.array(b3_raw).reshape((81, 48), order="F"))
+
+b4_raw = pd.read_csv('../data/a530875.asc', header=None)
+b4_raw = pd.DataFrame(np.array(b4_raw).reshape((128, 37), order="F"))
+
+def extract_info(b):
+
+    # Create separate dataframe for bus info
+    new_index = ['' for x in range(11)]
+    new_index[0] = 'bus_number'
+    new_index[1] = 'month_purchased'
+    new_index[2] = 'year_purchased'
+    new_index[3] = 'month_replacement_1'
+    new_index[4] = 'year_replacement_1'
+    new_index[5] = 'odometer_replacement_1'
+    new_index[6] = 'month_replacement_2'
+    new_index[7] = 'year_replacement_2'
+    new_index[8] = 'odometer_replacement_2'
+    new_index[9] = 'month_begin'
+    new_index[10] = 'year_begin'
+    b_info = b.iloc[:11]
+    b_info.index = new_index
+    b_info = b_info.T.set_index('bus_number').T
+    
+    # Set bus number to be column headers
+    b = b.T.set_index([0]).T
+
+    # Drop bus info
+    b = b[10:]
+
+    # Add dates to row index
+    month = b_info.loc["month_begin"].values[0]
+    year = b_info.loc["year_begin"].values[0]
+    b.index = pd.date_range(f"{year}-{month}-01", periods=len(b), freq="MS")
+
+    # Fix month and years of odometer replacements to be date corresponding to odometer replacement
+    # Rust points out this differs in some cases
+    col_map = pd.DataFrame(b.columns).to_dict()[0]
+    for o in ['1', '2']:
+        x, y = np.where(b > b_info.loc[f'odometer_replacement_{o}', :])
+        replacement = pd.DataFrame([x, y], index=['row', 'column']).T
+        replacement = replacement.groupby('column').min()
+        replacement.index = replacement.index.map(col_map)
+        replacement[f'month_{o}'] = replacement['row'].apply(lambda x: b.index[x].month)
+        replacement[f'year_{o}'] = replacement['row'].apply(lambda x: np.mod(b.index[x].year, 1900))
+        replacement[f'replace_{o}'] = replacement['row'].apply(lambda x: pd.Timestamp(year=b.index[x].year, month=b.index[x].month, day=1))
+        replacement[replacement.row == 0] = 0
+        # Append checks to dataframe
+        replacement = replacement.drop('row', axis=1)
+        b_info = pd.concat([b_info, replacement.T])
+
+    return b_info, b
+
+def update_b(b, b_info):
+    '''Resets mileage after replacement and returns investment decision matrix'''
+
+    b_reset = b.copy()
+    b_i = b.copy()
+    b_i[:] = 0
+
+    for col in b.items():
+
+        bus_number = col[0]
+        bus_info = b_info[bus_number].copy()
+
+        for r in ('1'):
+            replace_date = bus_info[f'replace_{r}']
+
+            if replace_date != 0:
+
+                if r == '1':
+                    odometer_replacement = b.loc[replace_date, bus_number]
+
+                if r == '2':
+                    # Subtract mileage from earlier replacement
+                    replace_date_1 = bus_info[f'replace_1']
+                    previous_mileage = b.loc[replace_date_1, bus_number]
+                    odometer_replacement = b.loc[replace_date, bus_number] - previous_mileage
+                
+                bus_odometer = b_reset[bus_number].copy()
+                
+                # Find replacement date then subtract odometer replacement value from
+                # odometer readings after replacement
+                bus_odometer[bus_odometer.index > replace_date] -= odometer_replacement
+                b_reset[bus_number] = bus_odometer
+
+                # Set decision = 1 on replacement date
+                b_i.loc[replace_date, bus_number] = 1
+
+    return b, b_reset, b_i
+
+def discretize(b, d=5000):
+    '''Discretizes odometer data into buckets of length d'''
+
+    return np.floor(b / d)
+
+# Extract information from the raw datasets
+b1_info, b1 = extract_info(b1_raw)
+b2_info, b2 = extract_info(b2_raw)
+b3_info, b3 = extract_info(b3_raw)
+b4_info, b4 = extract_info(b4_raw)
+
+# Get relevant data and merge
+b1, b1_reset, b1_i = update_b(b1, b1_info)
+b2, b2_reset, b2_i = update_b(b2, b2_info)
+b3, b3_reset, b3_i = update_b(b3, b3_info)
+b4, b4_reset, b4_i = update_b(b4, b4_info)
+
+b = pd.concat([b1, b2, b3, b4], axis=1, join='outer')
+b_reset = pd.concat([b1_reset, b2_reset, b3_reset, b4_reset], axis=1, join='outer')
+b_i = pd.concat([b1_i, b2_i, b3_i, b4_i], axis=1, join='outer')
+
+# Create dataframe for likelihood estimation
+b_data = pd.concat([discretize(b_reset.T.stack()), b_i.T.stack()], axis=1)
+b_data.columns = ['state', 'decision']

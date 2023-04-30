@@ -82,6 +82,21 @@ Fx_1(:, 1) = p0;
 Fx_1(:, 2) = p1;
 Fx_1(:, 3) = p2;
 
+%% set up transition probabilities
+K = 90;
+
+p0=0.2; p1=0.3;p2=0.5;
+
+% Create transition matrix Fx_0 (90 by 90)
+% (i,j) entry means the probability of state variable becoming j 
+% when the state variable is i in period t and a_t=0
+P = zeros(K, K)
+P(1:(K+1):end) = p0
+P((K+1):(K+1):end) = p1;
+P((2*K+1):(K+1):end) = p2;
+P(K-1, K) = p1+p2
+P(K, K) = 1
+
 %% Step 2: Obtain Conditional Choice Probabilities
 
 tol = 1e-3;
@@ -99,18 +114,21 @@ ccp_1 = exp(v_1 - max_Vbar) ./ ( exp(v_0 - max_Vbar) + exp(v_1 - max_Vbar) );
 ccp_0 = exp(v_0 - max_Vbar) ./ ( exp(v_0 - max_Vbar) + exp(v_1 - max_Vbar) );
 
 %% Step 3: Form Log-Likelihood
-
+data = data_1to4;
 state  = data(:, 1);
 choice = data(:, 2);
 N = size(state, 1);
+state(choice==0)+1
 
+ccp_0 = randn(90,1);
+ccp_0( state(choice==0)+1, : )
 state_lead = NaN(N, 1);
 state_lead(1:N-1) = state(2:N);
 delta_state = state_lead - state;
 delta_state(delta_state>2) = 2;
 
-logchoiceprob = sum(log(ccp_1( state(choice==1) )), 'all') + ...
-                sum(log(ccp_0( state(choice==0) )), 'all');
+logchoiceprob = sum(log(ccp_1( state(choice==1)+1, : )), 'all') + ...
+                sum(log(ccp_0( state(choice==0)+1, : )), 'all');
 % 
 % transindex_0 = [sub2ind([K K], state(delta_state==0 & choice==0)', state(delta_state==0 & choice==0)'), ...
 %                sub2ind([K K], state(delta_state==1 & choice==0)', state(delta_state==1 & choice==0)'+1), ...
