@@ -1,3 +1,5 @@
+
+
 %% Test for transition probabilities calculation
 data = data_4;
 state_data  = data(:, 1);

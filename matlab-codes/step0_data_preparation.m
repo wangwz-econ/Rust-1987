@@ -45,10 +45,18 @@ data_1to3 = [data_1; data_2; data_3];
 data_1to4 = [data_1to3; data_4];
 
 
+%% Or, equivalently, we can use the class cls_Data to directly obtain the final dataset
 
+clearvars
 
+[group_1_raw] = cls_Data("..\data\g870.asc", 36, 15);
+[group_2_raw] = cls_Data("..\data\rt50.asc", 60, 4);
+[group_3_raw] = cls_Data("..\data\t8h203.asc", 81, 48);
+[group_4_raw] = cls_Data("..\data\a530875.asc", 128, 37);
 
-
-
-
-
+data_1 = data_output(group_1_raw);
+data_2 = data_output(group_2_raw);
+data_3 = data_output(group_3_raw);
+data_4 = data_output(group_4_raw);
+data_1to3 = [data_1; data_2; data_3];
+data_1to4 = [data_1to3; data_4];
